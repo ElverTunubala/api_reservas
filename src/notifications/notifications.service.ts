@@ -1,26 +1,32 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Notification } from './entities/notification.entity';
 import { NotificationDto } from './dto/create-notification.dto';
-import { UpdateNotificationDto } from './dto/update-notification.dto';
+import { Server } from 'socket.io';
+import { WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 
+@WebSocketGateway()
 @Injectable()
 export class NotificationService {
-  create(createNotificationDto: NotificationDto) {
-    return 'This action adds a new notification';
-  }
+  @WebSocketServer()
+  private server: Server;
 
-  findAll() {
-    return `This action returns all notifications`;
-  }
+  constructor(
+    @InjectRepository(Notification)
+    private notificationRepository: Repository<Notification>,
+  ) {}
 
-  findOne(id: number) {
-    return `This action returns a #${id} notification`;
-  }
+  async sendNotification(userId: string, type: string, message: string) {
+    const notification = this.notificationRepository.create({
+      user: { id: userId },
+      type,
+      sentDate: new Date(),
+      message,
+    });
+    await this.notificationRepository.save(notification);
 
-  update(id: number, updateNotificationDto: UpdateNotificationDto) {
-    return `This action updates a #${id} notification`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} notification`;
+    // Emitir notificación a través de WebSocket
+    this.server.emit('notification', { userId, type, message });
   }
 }
