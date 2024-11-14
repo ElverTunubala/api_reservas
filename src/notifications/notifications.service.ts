@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { CreateNotificationDto } from './dto/create-notification.dto';
+import { NotificationDto } from './dto/create-notification.dto';
 import { UpdateNotificationDto } from './dto/update-notification.dto';
 
 @Injectable()
-export class NotificationsService {
-  create(createNotificationDto: CreateNotificationDto) {
+export class NotificationService {
+  create(createNotificationDto: NotificationDto) {
     return 'This action adds a new notification';
   }
 
