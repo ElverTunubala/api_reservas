@@ -1,26 +1,24 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Room } from './entities/room.entity';
 import { RoomDto } from './dto/create-room.dto';
-import { UpdateRoomDto } from './dto/update-room.dto';
 
 @Injectable()
 export class RoomService {
-  create(createRoomDto: RoomDto) {
-    return 'This action adds a new room';
+  constructor(
+    @InjectRepository(Room)
+    private roomRepository: Repository<Room>,
+  ) {}
+
+  async findOne(id: string): Promise<Room> {
+    const room = await this.roomRepository.findOne({ where: { id } });
+    if (!room) throw new BadRequestException('Room not found');
+    return room;
   }
 
-  findAll() {
-    return `This action returns all rooms`;
-  }
-
-  findOne(id: number) {
-    return `This action returns a #${id} room`;
-  }
-
-  update(id: number, updateRoomDto: UpdateRoomDto) {
-    return `This action updates a #${id} room`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} room`;
+  async createRoom(roomDto: RoomDto): Promise<Room> {
+    const room = this.roomRepository.create(roomDto);
+    return this.roomRepository.save(room);
   }
 }

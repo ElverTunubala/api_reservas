@@ -2,18 +2,16 @@ import { IsNotEmpty, IsInt, IsDateString, Length } from 'class-validator';
 
 export class NotificationDto {
   @IsNotEmpty()
-  id: number;
+  id: string;
 
   @IsNotEmpty()
-  @IsInt()
-  userId: number;
+  userId: string;
 
   @IsNotEmpty()
-  @IsInt()
-  reservationId: number;
+  reservationId: string;
 
   @IsNotEmpty()
-  @Length(1, 50)
+  @Length(1, 100)
   type: string;
 
   @IsNotEmpty()

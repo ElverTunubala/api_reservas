@@ -3,29 +3,25 @@ import { ReservationStatus } from '../enum/reservatio.enum'
 
 export class ReservationDto {
   @IsNotEmpty()
-  id: number;
+  id: string;
 
   @IsNotEmpty()
-  @IsInt()
-  userId: number;
+  userId: string;
 
   @IsNotEmpty()
-  @IsInt()
-  roomId: number;
+  roomId: string;
 
   @IsNotEmpty()
   @IsDateString()
   reservationDate: Date;
 
   @IsNotEmpty()
-  @IsString()
-  @Length(5, 5) // Validates time format like "09:45"
-  startTime: string;
+  @IsDateString()  
+  startTime: Date;
 
   @IsNotEmpty()
-  @IsString()
-  @Length(5, 5) // Validates time format like "11:45"
-  endTime: string;
+  @IsDateString()  
+  endTime: Date;
 
   @IsNotEmpty()
   @IsEnum(ReservationStatus) 
