@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Reservation } from './entities/reservation.entity';
 import { ReservationDto } from './dto/create-reservation.dto';
 import { RoomService } from '../rooms/rooms.service';
@@ -19,57 +19,65 @@ export class ReservationService {
   async createReservation(reservationDto: ReservationDto): Promise<Reservation> {
     const { userId, roomId, reservationDate, startTime, endTime } = reservationDto;
 
-    // Obtener la hora actual en UTC
-    const currentDateTime = new Date();
+    // Convertir las cadenas de texto a objetos Date
+    const startTimeDate = new Date(startTime); // Start time como fecha
+    const endTimeDate = new Date(endTime); // End time como fecha
+    const reservationDateObj = new Date(reservationDate); // Reservation date
 
-    // Validar que los valores de fecha y hora sean válidos
-    if (!reservationDate || !startTime || !endTime) {
-      throw new BadRequestException('Invalid reservation date or time');
+    // Validar si las conversiones son válidas
+    if (isNaN(startTimeDate.getTime()) || isNaN(endTimeDate.getTime()) || isNaN(reservationDateObj.getTime())) {
+      throw new Error('Fechas inválidas: asegúrate de que las fechas estén en formato ISO 8601');
     }
 
-    // Validar que la fecha de inicio sea válida
-    const reservationStartDateTime = new Date(startTime); // startTime es una fecha completa
-    const reservationEndDateTime = new Date(endTime); // endTime es una fecha completa
+    // Validar que las fechas no sean en el pasado, ajustadas a UTC
+    const currentDateTime = new Date(); // La fecha actual en UTC
+    const currentDateTimeUtc = new Date(currentDateTime.toISOString()); // Asegurarnos de usar la hora UTC
 
-    if (isNaN(reservationStartDateTime.getTime()) || isNaN(reservationEndDateTime.getTime())) {
-      throw new BadRequestException('Invalid start or end time format');
+    // Verificar si la fecha de inicio es en el pasado
+    if (startTimeDate < currentDateTimeUtc) {
+      throw new BadRequestException('Reservation time cannot be in the past');
     }
 
-    // Validar disponibilidad de la habitación
+    // Validar que la reserva se haga con al menos 15 minutos de anticipación
+    const minimumAdvanceTime = new Date(currentDateTimeUtc.getTime() + 15 * 60000);
+    if (startTimeDate < minimumAdvanceTime) {
+      throw new BadRequestException('Reservation must be made at least 15 minutes in advance');
+    }
+
+    // Validar la disponibilidad de la habitación
     const room = await this.roomService.findOne(roomId);
     if (!room || !room.available) {
       throw new BadRequestException('Room is not available');
     }
 
-    // Validar que la reserva se haga al menos 15 minutos antes de la hora de inicio
-    const fifteenMinutesBeforeStartTime = reservationStartDateTime.getTime() - 15 * 60000; // 15 minutos antes de la hora de inicio
-
-    if (currentDateTime.getTime() > fifteenMinutesBeforeStartTime) {
-      throw new BadRequestException('Reservation must be made at least 15 minutes in advance');
-    }
-
-    // Verificar si la habitación ya está reservada en el mismo rango de tiempo
-    const overlappingReservation = await this.reservationRepository.findOne({
+    // Verificar conflictos de horario
+    const overlappingReservations = await this.reservationRepository.find({
       where: {
         room: { id: roomId },
-        reservationDate, // La misma fecha
-        startTime: LessThanOrEqual(reservationEndDateTime),      // La reserva existente empieza antes de que termine la nueva
-        endTime: MoreThanOrEqual(reservationStartDateTime),     // Y termina después de que empiece la nueva
-        status: ReservationStatus.PENDING,                      // Asegurarse de que la reserva esté activa
+        reservationDate: reservationDateObj,
+        status: ReservationStatus.PENDING,
       },
     });
 
-    if (overlappingReservation) {
-      throw new BadRequestException('Room is already reserved in this time range');
+    for (const existing of overlappingReservations) {
+      const existingStart = new Date(existing.startTime);
+      const existingEnd = new Date(existing.endTime);
+
+      if (
+        (startTimeDate >= existingStart && startTimeDate < existingEnd) ||
+        (endTimeDate > existingStart && endTimeDate <= existingEnd)
+      ) {
+        throw new BadRequestException('Room is already reserved in this time range');
+      }
     }
 
     // Crear la nueva reserva
     const reservation = this.reservationRepository.create({
       user: { id: userId },
       room: { id: roomId },
-      reservationDate,
-      startTime: reservationStartDateTime, // Guardar como fecha completa
-      endTime: reservationEndDateTime,     // Guardar como fecha completa
+      reservationDate: reservationDateObj,
+      startTime: startTimeDate,
+      endTime: endTimeDate,
       status: ReservationStatus.PENDING,
     });
     await this.reservationRepository.save(reservation);
@@ -78,7 +86,7 @@ export class ReservationService {
     await this.notificationService.sendNotification(
       userId,
       `Reservation created for room ${roomId}`,
-      `Your reservation for ${reservationDate} from ${reservationStartDateTime.toISOString()} to ${reservationEndDateTime.toISOString()} is confirmed.`,
+      `Your reservation for ${reservationDate} from ${startTimeDate} to ${endTimeDate} is confirmed.`,
     );
 
     return reservation;
@@ -88,9 +96,9 @@ export class ReservationService {
     const reservation = await this.reservationRepository.findOne({ where: { id } });
     if (!reservation) throw new NotFoundException('Reservation not found');
 
-    // Validar si la fecha y hora de la reserva ya pasó
-    const reservationStartDateTime = new Date(reservation.startTime); // Usar la fecha completa
-    if (new Date() >= reservationStartDateTime) {
+    // Validar si la reserva ya empezó
+    const reservationStartDateTime = new Date(reservation.startTime);
+    if (reservationStartDateTime < new Date()) {
       throw new BadRequestException('Cannot cancel reservation at the reserved time');
     }
 
@@ -102,7 +110,7 @@ export class ReservationService {
     await this.notificationService.sendNotification(
       reservation.user.id,
       'Reservation canceled',
-      'Your reservation has been successfully canceled.'
+      'Your reservation has been successfully canceled.',
     );
   }
 }
