@@ -2,7 +2,7 @@ import { IsNotEmpty, IsBoolean, Length, IsInt, Min } from 'class-validator';
 
 export class RoomDto {
   @IsNotEmpty()
-  id: number;
+  id: string;
 
   @IsNotEmpty()
   @Length(1, 20)
@@ -16,4 +16,5 @@ export class RoomDto {
   @IsNotEmpty()
   @IsBoolean()
   available: boolean;
+
 }

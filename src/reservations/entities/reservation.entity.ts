@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { Room } from '../../rooms/entities/room.entity';
 import { ReservationStatus } from '../enum/reservatio.enum'
@@ -11,19 +11,21 @@ export class Reservation {
   id: string;
 
   @ManyToOne(() => User, (user) => user.reservations)
+  @JoinColumn({ name: 'userId' }) 
   user: User;
 
   @ManyToOne(() => Room, (room) => room.reservations)
+  @JoinColumn({ name: 'roomId' })
   room: Room;
 
   @Column({ type: 'timestamp' })
   reservationDate: Date;
 
-  @Column({ type: 'time' })
-  startTime: string;
+  @Column({ type: 'timestamp' }) 
+  startTime: Date;
 
-  @Column({ type: 'time' })
-  endTime: string;
+  @Column({ type: 'timestamp' }) 
+  endTime: Date;
 
   @Column({ type: 'enum', enum: ReservationStatus }) 
   status: ReservationStatus;

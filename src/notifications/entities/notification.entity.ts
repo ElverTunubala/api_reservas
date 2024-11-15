@@ -15,7 +15,7 @@ export class Notification {
   reservation: Reservation;
   
 
-  @Column({ type: 'varchar', length: 50 })
+  @Column({ type: 'varchar', length: 100 })
   type: string;
 
   @Column({ type: 'timestamp' })
